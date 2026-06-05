@@ -8,6 +8,7 @@ from collections.abc import Callable
 from homecloud.access import ssh_config_block
 from homecloud.config import settings
 from homecloud.dns.names import connection_info
+from homecloud.dns.zone import write_zone
 from homecloud.images.cloud_init import render_cloud_init
 from homecloud.images.registry import get_image
 from homecloud.proxmox.client import ProxmoxClient
@@ -126,6 +127,10 @@ class VMDeployer:
             "image_id": image_id,
         }
         register_vm(name, record)
+        try:
+            write_zone()
+        except Exception:
+            logger.warning("write_zone failed after VM create — non-fatal", exc_info=True)
         emit("info", f"Deployment complete — SSH: {dns['ssh']}")
 
         return {
@@ -197,6 +202,10 @@ class VMManager:
     def delete(self, vmid: int, *, name: str | None = None) -> dict:
         if name:
             unregister_vm(name)
+            try:
+                write_zone()
+            except Exception:
+                logger.warning("write_zone failed after VM delete — non-fatal", exc_info=True)
         try:
             stop_task = self.proxmox.stop(vmid)
             self.proxmox.wait_for_task(stop_task, timeout=120)

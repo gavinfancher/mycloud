@@ -23,6 +23,7 @@ import os
 
 from homecloud.cloudflare.dns import CloudflareDNS
 from homecloud.config import settings
+from homecloud.dns.zone import write_zone
 from homecloud.proxy.caddy import CaddyProxy
 from homecloud.state import remove_instance_web_service, set_instance_web_service
 
@@ -88,6 +89,14 @@ def publish_web(
         port,
         public,
     )
+
+    # Regenerate the CoreDNS zone so private tailnet names stay in sync.
+    # TODO(phase-05): also call write_zone after port-discovery publish events.
+    try:
+        write_zone()
+    except Exception:
+        logger.warning("write_zone failed after publish_web — non-fatal", exc_info=True)
+
     return {
         "hostname": public_host,
         "caddy_config": caddy_filename,
@@ -116,3 +125,9 @@ def unpublish_web(instance_name: str, service: str) -> None:
     remove_instance_web_service(instance_name, service)
 
     logger.info("Unpublished web service: %s.%s", service, instance_name)
+
+    # Regenerate the CoreDNS zone.
+    try:
+        write_zone()
+    except Exception:
+        logger.warning("write_zone failed after unpublish_web — non-fatal", exc_info=True)

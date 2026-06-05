@@ -38,6 +38,19 @@ services:
     depends_on:
       - caddy
 
+  coredns:
+    image: coredns/coredns:latest
+    container_name: homecloud-coredns
+    restart: unless-stopped
+    command: -conf /etc/coredns/Corefile
+    volumes:
+      - ./infra/coredns/Corefile:/etc/coredns/Corefile:ro
+      # controller writes db.myhomecloud.dev into this shared volume
+      - coredns_zones:/etc/coredns
+    ports:
+      - "53:53/udp"
+      - "53:53/tcp"
+
 volumes:
   caddy_sites:
   # Phase 06: CoreDNS zone files (declared here for forward-compat)
