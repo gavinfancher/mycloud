@@ -1,0 +1,24 @@
+#cloud-config
+hostname: {{ hostname }}
+
+{% if ssh_public_key %}
+ssh_authorized_keys:
+  - {{ ssh_public_key }}
+{% endif %}
+
+write_files:
+  - path: /opt/homecloud/join-tailscale.sh
+    permissions: "0755"
+    content: |
+      #!/bin/bash
+      set -euo pipefail
+      tailscale up --reset \
+        --authkey="{{ tailscale_auth_key }}" \
+        --hostname="{{ hostname }}" \
+        --accept-routes
+      tailscale set --auto-update=true
+
+runcmd:
+  - [bash, /opt/homecloud/join-tailscale.sh]
+
+final_message: "homecloud VM {{ hostname }} joined tailnet"

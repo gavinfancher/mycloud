@@ -1,0 +1,12 @@
+services:
+  homecloud:
+    build: .
+    container_name: homecloud
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    env_file: .env
+    volumes:
+      - ./.homecloud:/app/.homecloud
+      - ./ssh:/mnt/ssh:ro
+    working_dir: /app
