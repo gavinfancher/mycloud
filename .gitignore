@@ -1,13 +1,3 @@
-# OS
 .DS_Store
-
-# Services
-services/dns/data/*
-services/dns/.env
-
-# Infra / Ansible
-infra/ansible/local_vars.yml
-
-# Proxmox - SSH keys (stored locally on Proxmox, not in repo)
-infra/proxmox/ssh/*
-!infra/proxmox/ssh/.gitkeep
+.env
+*.local
