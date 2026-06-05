@@ -2,6 +2,10 @@
 .env
 *.local
 
+# SSH keys (mount at runtime; never commit private keys)
+ssh/*-key
+ssh/*-key.pub
+
 # Python
 .venv/
 __pycache__/
