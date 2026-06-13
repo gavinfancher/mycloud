@@ -11,6 +11,7 @@ from homecloud.dns.names import connection_info
 from homecloud.dns.zone import write_zone
 from homecloud.images.cloud_init import render_cloud_init
 from homecloud.images.registry import get_image
+from homecloud.jobs import JobCancelled
 from homecloud.proxmox.client import ProxmoxClient
 from homecloud.state import (
     get_built_template,
@@ -46,10 +47,17 @@ class VMDeployer:
         size_id: str = "custom",
         image_id: str = "homecloud-base",
         log: LogFn | None = None,
+        cancel_check: Callable[[], bool] | None = None,
     ) -> dict:
         emit = log or _noop_log
+
+        def check_cancel() -> None:
+            if cancel_check and cancel_check():
+                raise JobCancelled("Deployment cancelled by user")
+
         hydrate_registry()
 
+        check_cancel()
         emit("info", "Validating configuration…")
         if not settings.tailscale_auth_key:
             raise ValueError("TAILSCALE_AUTH_KEY required — VMs must join your tailnet")
@@ -69,6 +77,7 @@ class VMDeployer:
         if not ssh_keys:
             raise ValueError("No SSH public key — complete setup first")
 
+        check_cancel()
         vmid = self.proxmox.next_vmid()
         emit("info", f"Allocated VM ID {vmid} for {name}")
 
@@ -76,6 +85,7 @@ class VMDeployer:
         task = self.proxmox.clone_template(template_id, vmid, name)
         self.proxmox.wait_for_task(task)
         emit("info", "Clone complete")
+        check_cancel()
 
         emit("info", "Configuring cloud-init (Tailscale join + SSH keys)…")
         deploy_cloud_init = render_cloud_init(
@@ -106,7 +116,7 @@ class VMDeployer:
         self.proxmox.wait_for_task(start_task, timeout=120)
         emit("info", f"VM {vmid} is running — waiting for Tailscale join")
 
-        tailscale_ip = self._wait_for_tailscale_ip(name, log=emit)
+        tailscale_ip = self._wait_for_tailscale_ip(name, log=emit, cancel_check=cancel_check)
         emit("info", f"Tailscale IP assigned: {tailscale_ip}")
 
         dns = connection_info(name, tailscale_ip)
@@ -164,11 +174,14 @@ class VMDeployer:
         *,
         timeout: int = 180,
         log: LogFn | None = None,
+        cancel_check: Callable[[], bool] | None = None,
     ) -> str:
         emit = log or _noop_log
         deadline = time.time() + timeout
         last_log = 0.0
         while time.time() < deadline:
+            if cancel_check and cancel_check():
+                raise JobCancelled("Deployment cancelled by user")
             ip = self.tailscale.get_device_ip(hostname)
             if ip:
                 return ip
@@ -198,6 +211,16 @@ class VMManager:
         task = self.proxmox.stop(vmid)
         self.proxmox.wait_for_task(task, timeout=120)
         return {"vmid": vmid, "status": "stopped"}
+
+    def suspend(self, vmid: int) -> dict:
+        task = self.proxmox.suspend(vmid)
+        self.proxmox.wait_for_task(task, timeout=120)
+        return {"vmid": vmid, "status": "paused"}
+
+    def resume(self, vmid: int) -> dict:
+        task = self.proxmox.resume(vmid)
+        self.proxmox.wait_for_task(task, timeout=120)
+        return {"vmid": vmid, "status": "running"}
 
     def delete(self, vmid: int, *, name: str | None = None) -> dict:
         if name:

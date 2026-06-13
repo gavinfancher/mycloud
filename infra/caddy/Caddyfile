@@ -11,7 +11,15 @@
     auto_https off
 }
 
-# Per-host site files are written by the controller into the shared
-# caddy_sites volume and imported here.  After writing a file, the controller
-# POSTs to http://caddy:2019/reload so Caddy picks up the change immediately.
+# Control-plane API (phase 09). The Cloudflare Pages SPA calls this host; it is
+# authenticated by Clerk bearer tokens in the app (NOT forward-auth), so no gate
+# here. Keep this host in sync with API_PUBLIC_HOST.
+http://api.myhomecloud.dev {
+    reverse_proxy controller:8080
+}
+
+# Per-host site files (published instance apps) are written by the controller
+# into the shared caddy_sites volume and imported here.  Each carries its own
+# Clerk forward-auth gate (see CADDY_FORWARD_AUTH_UPSTREAM).  After writing a
+# file, the controller POSTs to http://caddy:2019/reload to pick it up.
 import /etc/caddy/sites/*.caddy

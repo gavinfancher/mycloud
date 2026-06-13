@@ -62,11 +62,7 @@ class CaddyProxy:
         config_path = self._config_path(fqdn)
 
         # ``http://`` prefix disables Caddy auto-HTTPS for this site.
-        config_path.write_text(
-            f"http://{fqdn} {{\n"
-            f"    reverse_proxy {upstream_host}:{upstream_port}\n"
-            f"}}\n"
-        )
+        config_path.write_text(self._render_site(fqdn, upstream_host, upstream_port))
         logger.info("Wrote Caddy site config: %s → %s:%s", fqdn, upstream_host, upstream_port)
         self._reload()
         return {
@@ -74,6 +70,25 @@ class CaddyProxy:
             "upstream": f"{upstream_host}:{upstream_port}",
             "config": str(config_path),
         }
+
+    def _render_site(self, fqdn: str, upstream_host: str, upstream_port: int) -> str:
+        """Render the ``.caddy`` site body, gating it behind Clerk forward-auth
+        when ``CADDY_FORWARD_AUTH_UPSTREAM`` is set."""
+        forward_auth = ""
+        upstream = settings.caddy_forward_auth_upstream.strip()
+        if upstream:
+            forward_auth = (
+                f"    forward_auth {upstream} {{\n"
+                f"        uri /auth/verify\n"
+                f"        copy_headers X-Auth-Sub\n"
+                f"    }}\n"
+            )
+        return (
+            f"http://{fqdn} {{\n"
+            f"{forward_auth}"
+            f"    reverse_proxy {upstream_host}:{upstream_port}\n"
+            f"}}\n"
+        )
 
     def remove_route(self, hostname: str) -> None:
         """Delete the Caddy site file for *hostname* and reload."""

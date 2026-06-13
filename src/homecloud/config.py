@@ -57,5 +57,27 @@ class Settings(BaseSettings):
     # Default primary web port for an instance's base hostname
     default_web_port: int = 80
 
+    # Owner (single-user model) — namespacing label used in public hostnames:
+    #   <service>.<instance>.<owner_username>.<domain>
+    # Leave empty to keep the flat <service>.<instance>.<domain> scheme.
+    owner_username: str = ""
+
+    # Clerk auth (phase 09). All optional: when jwks_url + issuer are unset,
+    # auth is DISABLED (fail-open dev mode, logged loudly) so local runs/tests
+    # work without infra. In production set both → fail-closed.
+    clerk_jwks_url: str = ""           # https://<slug>.clerk.accounts.dev/.well-known/jwks.json
+    clerk_issuer: str = ""            # https://<slug>.clerk.accounts.dev
+    clerk_authorized_parties: str = ""  # comma-separated allowed azp (e.g. https://app.myhomecloud.dev)
+    clerk_publishable_key: str = ""   # public; surfaced to the SPA via GET /api/config
+
+    # Frontend / API exposure (phases 09–11)
+    frontend_origin: str = ""          # comma-separated CORS origins for the Pages SPA
+    api_public_host: str = ""          # e.g. api.myhomecloud.dev (tunnel/Caddy route)
+    console_url: str = ""              # e.g. https://app.myhomecloud.dev — login redirect target
+
+    # Caddy forward-auth (phase 11). When set, every published site is gated by
+    # a forward_auth to this upstream's /auth/verify. Empty → no auth block.
+    caddy_forward_auth_upstream: str = ""  # e.g. controller:8080
+
 
 settings = Settings()

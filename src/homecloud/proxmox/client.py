@@ -190,6 +190,12 @@ class ProxmoxClient:
     def stop(self, vmid: int) -> str:
         return self._api.nodes(self.node).qemu(vmid).status.stop.post()
 
+    def suspend(self, vmid: int) -> str:
+        return self._api.nodes(self.node).qemu(vmid).status.suspend.post()
+
+    def resume(self, vmid: int) -> str:
+        return self._api.nodes(self.node).qemu(vmid).status.resume.post()
+
     def convert_to_template(self, vmid: int) -> None:
         self._api.nodes(self.node).qemu(vmid).template.post()
 

@@ -16,3 +16,12 @@ __pycache__/
 console/node_modules/
 console/.next/
 console/dist/
+
+# Web SPA (Vite build artifacts; source is committed)
+web/node_modules/
+web/dist/
+
+# Agent tooling artifacts (not project code)
+.agents/
+.claude/
+skills-lock.json

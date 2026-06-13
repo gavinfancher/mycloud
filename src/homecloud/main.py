@@ -4,10 +4,12 @@ import logging
 from pathlib import Path
 
 import uvicorn
-from fastapi import FastAPI
+from fastapi import Depends, FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
-from homecloud.api.routes import router, ui_index
+from homecloud.api.routes import auth_router, public_router, router, ui_index
+from homecloud.auth import require_auth
 from homecloud.config import settings
 from homecloud.state import hydrate_registry
 
@@ -18,7 +20,23 @@ app = FastAPI(
     description="Control plane for Proxmox-based instances — Tailscale MagicDNS",
     version="0.2.0",
 )
-app.include_router(router)
+
+# CORS for the Cloudflare Pages SPA (comma-separated origins). No-op when unset.
+_origins = [o.strip() for o in settings.frontend_origin.split(",") if o.strip()]
+if _origins:
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=_origins,
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+
+# Public (unauthenticated): health + SPA bootstrap config + forward-auth gate.
+app.include_router(public_router)
+app.include_router(auth_router)
+# Everything under /api requires a valid Clerk token (no-op in dev — see auth.py).
+app.include_router(router, dependencies=[Depends(require_auth)])
 
 static_dir = Path(__file__).resolve().parent / "static"
 if static_dir.exists():

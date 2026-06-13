@@ -4,17 +4,18 @@ import threading
 from pathlib import Path
 
 import httpx
-from fastapi import APIRouter, HTTPException
-from fastapi.responses import FileResponse
+from fastapi import APIRouter, HTTPException, Request
+from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
 
 from homecloud.access import ssh_config_block
 from homecloud.api.schemas import DeployVMRequest, PublishServiceRequest, SetupRequest
+from homecloud.auth import extract_token, get_clerk_auth
 from homecloud.config import settings
 from homecloud.dns.names import connection_info, vm_fqdn
 from homecloud.images.builder import ImageBuilder
 from homecloud.images.deployer import VMDeployer, VMManager
 from homecloud.images.registry import list_images
-from homecloud.jobs import job_store
+from homecloud.jobs import JobCancelled, job_store
 from homecloud.ports import scan_ports
 from homecloud.proxmox.client import ProxmoxClient
 from homecloud.publish import publish_web, unpublish_web
@@ -32,6 +33,10 @@ from homecloud.state import (
 )
 
 router = APIRouter(prefix="/api", tags=["api"])
+# Unauthenticated endpoints (health + SPA bootstrap config).
+public_router = APIRouter(prefix="/api", tags=["public"])
+# Caddy forward-auth gate for published instance apps (no prefix).
+auth_router = APIRouter(tags=["auth"])
 STATIC_DIR = Path(__file__).resolve().parent.parent / "static"
 
 
@@ -54,9 +59,48 @@ def _merge_registered(vms: list[dict]) -> list[dict]:
     return vms
 
 
-@router.get("/health")
+@public_router.get("/health")
 def health() -> dict:
     return {"status": "ok"}
+
+
+@public_router.get("/config")
+def public_config() -> dict:
+    """Bootstrap config the SPA needs before the user authenticates."""
+    return {
+        "clerk_publishable_key": settings.clerk_publishable_key,
+        "domain": settings.domain,
+        "owner_username": settings.owner_username,
+        "auth_enabled": get_clerk_auth().enabled,
+    }
+
+
+@auth_router.get("/auth/verify")
+def auth_verify(request: Request):
+    """Forward-auth target for Caddy: 2xx allows, 302 redirects to login.
+
+    Gates published instance apps behind the same Clerk session. In disabled
+    (dev) mode it allows everything.
+    """
+    auth = get_clerk_auth()
+    if not auth.enabled:
+        return {"status": "auth-disabled"}
+    token = extract_token(request)
+    if token:
+        try:
+            claims = auth.verify_token(token)
+            return JSONResponse(
+                {"sub": claims.get("sub")},
+                headers={"X-Auth-Sub": claims.get("sub", "") or ""},
+            )
+        except Exception:  # noqa: BLE001 — fall through to the login redirect
+            pass
+    # Browser hitting a protected app with no/invalid session → send to console login.
+    if settings.console_url:
+        target = request.headers.get("X-Forwarded-Uri", "")
+        sep = "&" if "?" in settings.console_url else "?"
+        return RedirectResponse(f"{settings.console_url}{sep}redirect={target}", status_code=302)
+    raise HTTPException(401, "Unauthenticated")
 
 
 @router.get("/dashboard")
@@ -189,6 +233,23 @@ def get_job(job_id: str) -> dict:
     return job
 
 
+@router.post("/jobs/{job_id}/cancel")
+def cancel_job(job_id: str) -> dict:
+    """Request cooperative cancellation of a running job (e.g. a deploy).
+
+    The job stops at its next checkpoint; already-finished jobs are unaffected.
+    """
+    job = job_store.get(job_id)
+    if job is None:
+        raise HTTPException(404, "Job not found")
+    requested = job_store.request_cancel(job_id)
+    return {
+        "job_id": job_id,
+        "cancel_requested": requested,
+        "status": job_store.get(job_id)["status"],
+    }
+
+
 @router.get("/vms")
 def list_vms() -> list[dict]:
     proxmox = ProxmoxClient()
@@ -236,8 +297,11 @@ def deploy_vm(body: DeployVMRequest) -> dict:
                 disk_gb=body.disk_gb,  # type: ignore[arg-type]
                 image_id=body.image_id,
                 log=job_store.logger(job["id"]),
+                cancel_check=lambda: job_store.is_cancel_requested(job["id"]),
             )
             job_store.complete(job["id"], result)
+        except JobCancelled as exc:
+            job_store.cancelled(job["id"], str(exc))
         except (ValueError, TimeoutError) as exc:
             job_store.fail(job["id"], str(exc))
         except httpx.HTTPError as exc:
@@ -263,6 +327,26 @@ def stop_vm(vmid: int) -> dict:
     manager = VMManager()
     try:
         return manager.stop(vmid)
+    except Exception as exc:
+        raise HTTPException(500, str(exc)) from exc
+
+
+@router.post("/vms/{vmid}/suspend")
+def suspend_vm(vmid: int) -> dict:
+    """Pause (suspend to RAM) a running instance."""
+    manager = VMManager()
+    try:
+        return manager.suspend(vmid)
+    except Exception as exc:
+        raise HTTPException(500, str(exc)) from exc
+
+
+@router.post("/vms/{vmid}/resume")
+def resume_vm(vmid: int) -> dict:
+    """Resume a previously suspended instance."""
+    manager = VMManager()
+    try:
+        return manager.resume(vmid)
     except Exception as exc:
         raise HTTPException(500, str(exc)) from exc
 

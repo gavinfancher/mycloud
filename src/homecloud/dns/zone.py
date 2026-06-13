@@ -32,6 +32,7 @@ def render_zone(
     *,
     serial: int | None = None,
     domain: str | None = None,
+    username: str | None = None,
 ) -> str:
     """Render a CoreDNS zone file string for *domain* (default: settings.domain).
 
@@ -50,6 +51,7 @@ def render_zone(
     """
     _domain = domain or settings.domain
     _serial = serial if serial is not None else _default_serial()
+    _username = settings.owner_username if username is None else username
 
     lines: list[str] = [
         f"$ORIGIN {_domain}.",
@@ -66,8 +68,11 @@ def render_zone(
         ip = record.get("tailscale_ip") or record.get("ip")
         if not ip:
             continue
-        lines.append(f"{name:<20} IN A   {ip}")
-        lines.append(f"*.{name:<18} IN A   {ip}")
+        # Namespace under the owner's username to mirror the public scheme
+        # (<instance>.<username>); fall back to the flat name when unset.
+        node = f"{name}.{_username}" if _username else name
+        lines.append(f"{node:<20} IN A   {ip}")
+        lines.append(f"*.{node:<18} IN A   {ip}")
 
     lines.append("")  # trailing newline
     return "\n".join(lines)

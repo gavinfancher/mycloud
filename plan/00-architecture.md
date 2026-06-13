@@ -73,22 +73,29 @@ get the public tunnel (web only). This is exactly the desired behavior.
 > non-Enterprise plans. We therefore create an explicit record per published service. CoreDNS
 > (private side) can use wildcards freely.
 
-> **Cloudflare Access:** the zone sits behind Cloudflare Access. Published hostnames (via the
-> tunnel) are gated by Access policies at the edge — publishing a service makes it reachable
-> *to authenticated identities*, not the open internet. Cover new hostnames with a
-> self-hosted Access app on `*.myhomecloud.dev` so each published service is protected without
-> per-service setup. Machine clients use an Access **service token** (or a scoped bypass).
-> The controller's own console stays on the tailnet and is not behind Access.
+> **Auth — SUPERSEDED (phases 09–11): Clerk, not Cloudflare Access.** The owner chose a single
+> auth system. The control-plane UI is now a **React + Vite SPA on Cloudflare Pages** behind
+> **Clerk** (`web/`), and the FastAPI API verifies Clerk JWTs on every `/api/*` call
+> (`src/homecloud/auth.py`). Published instance apps are gated by the **same** Clerk session via
+> a **Caddy `forward_auth`** to the controller's `/auth/verify` (set
+> `CADDY_FORWARD_AUTH_UPSTREAM`); a shared `.myhomecloud.dev` session cookie gives SSO across the
+> console and all apps. Cloudflare Access is no longer used. (The original Access design is kept
+> below for historical context only.)
+>
+> _Historical:_ the zone was to sit behind Cloudflare Access with a self-hosted app on
+> `*.myhomecloud.dev` and service tokens for machine clients.
 
 ## 3. Naming model
 
 - Instance name: `^[a-z][a-z0-9-]{1,30}$` (already enforced).
 - Tailnet hostname == instance name (already implemented) → `app.<tailnet>.ts.net`.
-- Public/base web host: `app.myhomecloud.dev`.
-- Per-service web host: `<service>.app.myhomecloud.dev` where `<service>` is a user-chosen
-  label for a detected port (e.g. `grafana.app.myhomecloud.dev` → `app:3000`).
-- Private DB host: use the same `app.myhomecloud.dev` (resolves to tailnet IP on-tailnet) or an
-  optional alias `db.app.myhomecloud.dev`; connect on the DB port over the tailnet.
+- **Username namespacing (phase 12):** with `OWNER_USERNAME` set (single-user model), public and
+  private DNS names are namespaced under it. Empty → the original flat scheme.
+- Per-service web host: `<service>.<instance>.<username>.myhomecloud.dev`
+  (e.g. `airflow.dagster.gavin.myhomecloud.dev` → `dagster:8080`). Built by
+  `src/homecloud/publish.py::host_label`.
+- Private DB host: `<instance>.<username>.myhomecloud.dev` (and `*.<instance>.<username>`),
+  answered by CoreDNS with the tailnet IP; connect on the DB port over the tailnet.
 
 ## 4. State model
 

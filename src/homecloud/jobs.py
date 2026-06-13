@@ -13,6 +13,13 @@ MAX_JOBS = 50
 
 LogFn = Callable[[str, str], None]
 
+# Terminal states a job can no longer be cancelled from.
+_TERMINAL = ("completed", "failed", "cancelled")
+
+
+class JobCancelled(Exception):
+    """Raised inside a job's worker when cancellation has been requested."""
+
 
 class JobStore:
     """In-memory job tracker with lightweight persistence."""
@@ -50,6 +57,7 @@ class JobStore:
             "logs": [],
             "result": None,
             "error": None,
+            "cancel_requested": False,
         }
         with self._lock:
             self._jobs[job_id] = job
@@ -79,6 +87,30 @@ class JobStore:
     def fail(self, job_id: str, error: str) -> None:
         self.log(job_id, error, level="error")
         self._update(job_id, status="failed", error=error)
+
+    def request_cancel(self, job_id: str) -> bool:
+        """Flag *job_id* for cooperative cancellation.
+
+        Returns True if the request was recorded (job exists and is not yet in a
+        terminal state); False otherwise.
+        """
+        with self._lock:
+            job = self._jobs.get(job_id)
+            if not job or job["status"] in _TERMINAL:
+                return False
+            job["cancel_requested"] = True
+            job["updated_at"] = datetime.now(UTC).isoformat()
+            self._persist()
+        return True
+
+    def is_cancel_requested(self, job_id: str) -> bool:
+        with self._lock:
+            job = self._jobs.get(job_id)
+            return bool(job and job["cancel_requested"])
+
+    def cancelled(self, job_id: str, message: str = "Job cancelled") -> None:
+        self.log(job_id, message, level="warn")
+        self._update(job_id, status="cancelled")
 
     def get(self, job_id: str) -> dict | None:
         with self._lock:

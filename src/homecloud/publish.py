@@ -30,6 +30,19 @@ from homecloud.state import remove_instance_web_service, set_instance_web_servic
 logger = logging.getLogger(__name__)
 
 
+def host_label(service: str, instance_name: str) -> str:
+    """Build the DNS label for a published service.
+
+    With ``OWNER_USERNAME`` set the scheme is namespaced per the single-user
+    model: ``<service>.<instance>.<username>``.  Without it, the flat
+    ``<service>.<instance>`` is used (back-compat).
+    """
+    parts = [service, instance_name]
+    if settings.owner_username:
+        parts.append(settings.owner_username)
+    return ".".join(parts)
+
+
 def publish_web(
     instance_name: str,
     service: str,
@@ -50,14 +63,14 @@ def publish_web(
     Returns:
         Dict with keys ``hostname``, ``caddy_config``, ``cloudflare_record_id``.
     """
-    host_label = f"{service}.{instance_name}"
+    label = host_label(service, instance_name)
     domain = settings.domain
-    public_host = f"{host_label}.{domain}"
+    public_host = f"{label}.{domain}"
 
     # 1. Write / update Caddy site file.
     caddy = CaddyProxy()
     caddy_result = caddy.ensure_route(
-        host_label,
+        label,
         upstream_host=upstream_host,
         upstream_port=port,
     )
@@ -68,7 +81,7 @@ def publish_web(
     cloudflare_record_id = ""
     if public:
         cf = CloudflareDNS()
-        dns_result = cf.ensure_record(host_label)
+        dns_result = cf.ensure_record(label)
         cloudflare_record_id = dns_result.get("record_id", "")
 
     # 3. Persist to state.
@@ -111,15 +124,15 @@ def unpublish_web(instance_name: str, service: str) -> None:
     Cloudflare is unconfigured), and removes the state entry.  No-op if the
     service is not currently published.
     """
-    host_label = f"{service}.{instance_name}"
+    label = host_label(service, instance_name)
 
     # 1. Remove Caddy site file (reload happens inside remove_route).
     caddy = CaddyProxy()
-    caddy.remove_route(host_label)
+    caddy.remove_route(label)
 
     # 2. Remove Cloudflare record (no-op when unconfigured).
     cf = CloudflareDNS()
-    cf.delete_record(host_label)
+    cf.delete_record(label)
 
     # 3. Remove from state.
     remove_instance_web_service(instance_name, service)

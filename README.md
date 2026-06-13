@@ -49,8 +49,20 @@ No Pi-hole or local network required. Ensure **MagicDNS** is enabled in your [Ta
 | `POST /api/images/homecloud-base/build` | Build base template (async job) |
 | `POST /api/vms` | Create instance (async job) |
 | `GET /api/jobs/{id}` | Job status + logs |
-| `POST /api/vms/{id}/stop` | Stop instance |
+| `POST /api/jobs/{id}/cancel` | Cancel an in-flight job (e.g. a deploy) |
 | `POST /api/vms/{id}/start` | Start instance |
+| `POST /api/vms/{id}/stop` | Stop instance |
+| `POST /api/vms/{id}/suspend` | Pause (suspend to RAM) |
+| `POST /api/vms/{id}/resume` | Resume a suspended instance |
 | `DELETE /api/vms/{id}?name=...` | Delete instance |
+| `GET /api/config` | Public bootstrap config for the SPA (no auth) |
+| `GET /auth/verify` | Caddy forward-auth target (Clerk session gate) |
+
+## Auth (Clerk)
+
+The `/api/*` endpoints and every published instance app are gated by **Clerk**.
+Set `CLERK_JWKS_URL` + `CLERK_ISSUER` (and `CLERK_AUTHORIZED_PARTIES`) to enforce;
+when unset, auth is disabled for local/dev (logged loudly). The control-plane UI
+is a separate React + Vite SPA in `web/` (Cloudflare Pages) — see `.env.example`.
 
 Legacy config: [`legacy/initial`](../../tree/legacy/initial) branch.
