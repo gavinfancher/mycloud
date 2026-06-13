@@ -140,6 +140,19 @@ Open `https://app.myhomecloud.dev` — Clerk sign-in, API calls to `api.myhomecl
 
 ## Troubleshooting
 
+### Split DNS breaks `api` / `app` hostnames
+
+If Tailscale split DNS sends all of `myhomecloud.dev` to CoreDNS, instance names resolve
+privately but `api.myhomecloud.dev` and `app.myhomecloud.dev` must still reach Cloudflare.
+The Corefile uses **fallthrough** so unknown names forward to public resolvers (1.1.1.1).
+
+Verify on the tailnet:
+
+```bash
+dig @100.76.205.59 api.myhomecloud.dev    # should return Cloudflare IPs, not NXDOMAIN
+dig @100.76.205.59 dagster.gavin.myhomecloud.dev  # instance tailnet IP
+```
+
 ### CoreDNS won't start (port 53)
 
 If `systemd-resolved` holds port 53:

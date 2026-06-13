@@ -135,19 +135,30 @@ export function createApi(getToken: TokenGetter) {
     if (token) headers['Authorization'] = `Bearer ${token}`
     if (init.body) headers['Content-Type'] = 'application/json'
 
-    const resp = await fetch(`${API_BASE}${path}`, { ...init, headers })
-    if (!resp.ok) {
-      let detail = resp.statusText
-      try {
-        const body = await resp.json()
-        detail = body.detail ?? detail
-      } catch {
-        /* non-JSON error */
+    try {
+      const resp = await fetch(`${API_BASE}${path}`, { ...init, headers })
+      if (!resp.ok) {
+        let detail = resp.statusText
+        try {
+          const body = await resp.json()
+          detail = body.detail ?? detail
+        } catch {
+          /* non-JSON error */
+        }
+        throw new ApiError(resp.status, detail)
       }
-      throw new ApiError(resp.status, detail)
+      if (resp.status === 204) return undefined as T
+      return resp.json() as Promise<T>
+    } catch (e) {
+      if (e instanceof ApiError) throw e
+      if (e instanceof TypeError) {
+        throw new Error(
+          `Network error calling ${API_BASE || 'same-origin'}${path} — check DNS (split DNS) and CORS`,
+          { cause: e },
+        )
+      }
+      throw e
     }
-    if (resp.status === 204) return undefined as T
-    return resp.json() as Promise<T>
   }
 
   return {

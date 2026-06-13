@@ -1,5 +1,5 @@
 import { Show, SignIn, UserButton, useAuth } from '@clerk/react'
-import { useState, type ReactNode } from 'react'
+import { useCallback, useState, type ReactNode } from 'react'
 import './App.css'
 import {
   IconActivity,
@@ -66,8 +66,22 @@ export default function App() {
 // Bridges Clerk's session token into the (Clerk-agnostic) store. Only rendered
 // inside ClerkProvider, so calling useAuth here is safe.
 function ClerkStoreProvider({ children }: { children: ReactNode }) {
-  const { getToken } = useAuth()
-  return <StoreProvider getToken={getToken}>{children}</StoreProvider>
+  const { getToken, isLoaded, isSignedIn } = useAuth()
+
+  const tokenGetter = useCallback(async () => {
+    if (!isSignedIn) return null
+    return getToken()
+  }, [getToken, isSignedIn])
+
+  if (!isLoaded) {
+    return (
+      <div className="signin-wrap">
+        <p className="muted">Loading session…</p>
+      </div>
+    )
+  }
+
+  return <StoreProvider getToken={tokenGetter}>{children}</StoreProvider>
 }
 
 function Console({ devBypass = false }: { devBypass?: boolean }) {
