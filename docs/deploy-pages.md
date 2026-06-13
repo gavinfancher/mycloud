@@ -1,24 +1,27 @@
 # Deploy the console (Cloudflare Pages + GitHub)
 
-The SPA in `frontend/` is a static Vite build deployed to **Cloudflare Pages**.
-Pages runs on the Workers platform; you do not need a separate Worker for the console.
+The SPA in `frontend/` is deployed as **static assets on a Cloudflare Worker**
+(Git-connected: build → `wrangler deploy`). You do not need a separate Worker script.
 
 Production URL: `https://app.myhomecloud.dev`  
 API URL (separate stack): `https://api.myhomecloud.dev`
 
-## One-time: connect GitHub → Pages
+## One-time: connect GitHub → Workers & Pages
 
-In [Cloudflare Dashboard](https://dash.cloudflare.com) → **Workers & Pages** → **Create** → **Pages** → **Connect to Git**:
+In [Cloudflare Dashboard](https://dash.cloudflare.com) → **Workers & Pages** → **Create** → connect Git:
 
 | Setting | Value |
 |---|---|
 | Repository | `gavinfancher/homecloud` |
 | **Production branch** | `main` |
 | **Root directory** | `frontend` |
-| **Framework preset** | Vite (or None) |
 | **Build command** | `npm run build` |
-| **Build output directory** | `dist` |
-| **Node.js version** | `22` (matches `frontend/.node-version`) |
+| **Deploy command** | `npx wrangler deploy` |
+| **Version command** | `npx wrangler versions upload` *(default — leave as-is)* |
+| **Node.js version** | `22` |
+
+The deploy command **cannot be removed** on Workers Git projects — that's expected.
+`frontend/wrangler.toml` tells `wrangler deploy` to upload `./dist` as static assets.
 
 Enable **automatic deployments** on push to `main`.
 
@@ -57,6 +60,26 @@ Redeploy the stack on the control node after changing `.env`:
 ```bash
 make deploy-stack   # or: docker compose up -d --build
 ```
+
+## Troubleshooting
+
+### Build succeeds, deploy fails with "Missing entry-point"
+
+Your project uses **Workers Git deploy** (`npx wrangler deploy`). Ensure
+`frontend/wrangler.toml` includes:
+
+```toml
+[assets]
+directory = "./dist"
+not_found_handling = "single-page-application"
+```
+
+Commit, push to `main`, and retry. Do **not** try to delete the deploy command —
+Workers Git projects require it.
+
+### Build fails: missing Clerk key
+
+Add `VITE_CLERK_PUBLISHABLE_KEY` under Pages → **Environment variables** (Production), then retry.
 
 ## Verify a deploy
 
