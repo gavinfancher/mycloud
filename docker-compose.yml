@@ -48,8 +48,9 @@ services:
       # controller writes db.myhomecloud.dev into this shared volume
       - coredns_zones:/etc/coredns
     ports:
-      - "53:53/udp"
-      - "53:53/tcp"
+      # Bind on tailnet IP only — avoids conflict with systemd-resolved on 127.0.0.53
+      - "${CONTROL_NODE_TAILSCALE_IP:?set CONTROL_NODE_TAILSCALE_IP}:53:53/udp"
+      - "${CONTROL_NODE_TAILSCALE_IP:?set CONTROL_NODE_TAILSCALE_IP}:53:53/tcp"
 
 volumes:
   caddy_sites:
