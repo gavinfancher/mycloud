@@ -1,4 +1,4 @@
-.PHONY: install test build dev-api dev-web deploy-frontend deploy-stack smoke
+.PHONY: install test build dev-api dev-web deploy-frontend deploy-stack deploy-remote smoke
 
 install:
 	.venv/bin/pip install -e '.[dev]'
@@ -24,6 +24,9 @@ deploy-frontend:
 
 deploy-stack:
 	./scripts/deploy-stack.sh
+
+deploy-remote:
+	./scripts/deploy-remote.sh
 
 smoke:
 	curl -fsS http://localhost:8080/api/health

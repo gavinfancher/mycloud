@@ -1,10 +1,14 @@
 #!/usr/bin/env bash
 # Build and (re)start the control-plane stack via docker compose.
-# Run on the control node with a filled .env (Proxmox, Tailscale, Cloudflare, Clerk).
+# On a git clone, prefer scripts/control-node-deploy.sh (syncs main first).
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
+
+if git rev-parse --git-dir >/dev/null 2>&1; then
+  exec "$ROOT/scripts/control-node-deploy.sh"
+fi
 
 if [[ ! -f .env ]]; then
   echo "Missing .env — copy .env.example and fill in secrets first." >&2
@@ -15,7 +19,7 @@ echo "→ Building controller image…"
 docker compose build controller
 
 echo "→ Starting stack (controller, caddy, cloudflared, coredns)…"
-docker compose up -d
+docker compose up -d --remove-orphans
 
 echo "→ Health check…"
 sleep 2
