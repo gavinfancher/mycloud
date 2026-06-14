@@ -15,7 +15,7 @@ Shell helpers for local dev and control-node operations. Run from repo root or v
 Stack commands use `infra/docker/docker-compose.yml` and the repo-root `.env`:
 
 ```bash
-docker compose -f infra/docker/docker-compose.yml --env-file .env up -d
+docker compose -p homecloud -f infra/docker/docker-compose.yml --env-file .env up -d
 ```
 
 Automated backend deploy: GitHub Actions self-hosted runner runs `control-node-deploy.sh`

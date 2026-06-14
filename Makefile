@@ -1,7 +1,7 @@
 .PHONY: install test build dev-api dev-web deploy-frontend deploy-stack deploy-remote smoke
 
 COMPOSE_FILE := infra/docker/docker-compose.yml
-COMPOSE := docker compose -f $(COMPOSE_FILE) --env-file .env
+COMPOSE := docker compose -p homecloud -f $(COMPOSE_FILE) --env-file .env
 
 install:
 	.venv/bin/pip install -e '.[dev]'
