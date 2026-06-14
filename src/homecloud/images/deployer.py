@@ -200,8 +200,13 @@ class VMDeployer:
 class VMManager:
     """Start, stop, and delete VMs."""
 
-    def __init__(self, proxmox: ProxmoxClient | None = None) -> None:
+    def __init__(
+        self,
+        proxmox: ProxmoxClient | None = None,
+        tailscale: TailscaleClient | None = None,
+    ) -> None:
         self.proxmox = proxmox or ProxmoxClient()
+        self.tailscale = tailscale or TailscaleClient()
 
     def start(self, vmid: int) -> dict:
         task = self.proxmox.start(vmid)
@@ -227,7 +232,9 @@ class VMManager:
         ProxmoxClient.invalidate_vm_list_cache()
         return {"vmid": vmid, "status": "running"}
 
-    def delete(self, vmid: int, *, name: str | None = None) -> dict:
+    def delete(self, vmid: int, *, name: str | None = None, log: LogFn | None = None) -> dict:
+        log = log or _noop_log
+        tailscale_removed = False
         if name:
             unregister_vm(name)
             try:
@@ -239,8 +246,18 @@ class VMManager:
             self.proxmox.wait_for_task(stop_task, timeout=120)
         except Exception:
             pass
+        if name and settings.tailscale_api_key:
+            try:
+                if self.tailscale.delete_device_by_hostname(name):
+                    tailscale_removed = True
+                    log("info", f"Removed {name} from Tailnet")
+                else:
+                    log("info", f"No Tailscale device for {name} — tailnet cleanup skipped")
+            except Exception as exc:
+                logger.warning("Tailscale device delete failed for %s", name, exc_info=True)
+                log("warning", f"Could not remove {name} from Tailnet: {exc}")
         task = self.proxmox.delete_vm(vmid)
         if task:
             self.proxmox.wait_for_task(task, timeout=120)
         ProxmoxClient.invalidate_vm_list_cache()
-        return {"vmid": vmid, "status": "deleted"}
+        return {"vmid": vmid, "status": "deleted", "tailscale_removed": tailscale_removed}

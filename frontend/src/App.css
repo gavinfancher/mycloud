@@ -519,29 +519,51 @@ textarea {
 
 .mini-vms {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
   gap: 10px;
   padding: 14px 18px;
 }
-.mini-vm {
+.mini-vm-card {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 10px 12px;
+  gap: 6px;
+  padding: 8px 8px 8px 10px;
   background: var(--panel-2);
   border: 1px solid var(--border-soft);
   border-radius: var(--radius-sm);
+}
+.mini-vm-card:hover {
+  border-color: var(--border);
+}
+.mini-vm-main {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+  min-width: 0;
+  padding: 2px 4px;
+  background: none;
+  border: none;
   cursor: pointer;
   font: inherit;
   color: var(--text);
   text-align: left;
 }
-.mini-vm:hover {
-  border-color: var(--border);
+.mini-vm-main:hover {
+  opacity: 0.92;
 }
 .mini-vm-name {
   font-weight: 600;
   flex: 1;
+  min-width: 0;
+}
+.mini-vm-specs {
+  font-size: 12px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.mini-vm-card .instance-actions {
+  flex-shrink: 0;
 }
 
 /* ── Pills / dots / tags ─────────────────────────────── */
@@ -1278,6 +1300,16 @@ textarea {
 }
 .job-target {
   font-weight: 500;
+}
+.job-actions {
+  white-space: nowrap;
+}
+.job-actions .instance-actions {
+  gap: 2px;
+}
+.job-logs {
+  font-size: 12px;
+  text-align: right;
 }
 
 /* ── Settings ────────────────────────────────────────── */

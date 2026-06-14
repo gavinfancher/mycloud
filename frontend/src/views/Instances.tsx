@@ -5,13 +5,10 @@ import {
   IconChevron,
   IconGlobe,
   IconInstances,
-  IconPause,
-  IconPlay,
   IconPlus,
   IconScan,
-  IconStop,
-  IconTrash,
 } from '../components/Icons'
+import { InstanceActions } from '../components/InstanceActions'
 import { useToast } from '../components/Toast'
 import { CopyButton, EmptyState, Field, Mono, Pill } from '../components/ui'
 import { useStore } from '../lib/store'
@@ -102,11 +99,10 @@ function InstanceRow({ vm, open, onToggle }: { vm: VM; open: boolean; onToggle: 
   const toast = useToast()
   const [busy, setBusy] = useState(false)
 
-  async function act(fn: () => Promise<unknown>, msg?: string) {
+  async function act(fn: () => Promise<unknown>) {
     setBusy(true)
     try {
       await fn()
-      if (msg) toast.success(msg)
       await refresh()
     } catch (e) {
       toast.error(e instanceof Error ? e.message : String(e))
@@ -137,59 +133,8 @@ function InstanceRow({ vm, open, onToggle }: { vm: VM; open: boolean; onToggle: 
           </span>
         )}
         <div className="spacer" />
-        <div className="instance-actions" onClick={(e) => e.stopPropagation()}>
-          {vm.status === 'running' ? (
-            <>
-              <button
-                className="btn-icon"
-                title="Pause"
-                disabled={busy}
-                onClick={() => act(() => api.suspend(vm.vmid), `Paused ${vm.name}`)}
-              >
-                <IconPause />
-              </button>
-              <button
-                className="btn-icon"
-                title="Stop"
-                disabled={busy}
-                onClick={() => act(() => api.stop(vm.vmid), `Stopped ${vm.name}`)}
-              >
-                <IconStop />
-              </button>
-            </>
-          ) : vm.status === 'paused' ? (
-            <button
-              className="btn-icon ok"
-              title="Resume"
-              disabled={busy}
-              onClick={() => act(() => api.resume(vm.vmid), `Resumed ${vm.name}`)}
-            >
-              <IconPlay />
-            </button>
-          ) : (
-            <button
-              className="btn-icon ok"
-              title="Start"
-              disabled={busy}
-              onClick={() => act(() => api.start(vm.vmid), `Started ${vm.name}`)}
-            >
-              <IconPlay />
-            </button>
-          )}
-          <button
-            className="btn-icon danger"
-            title="Delete"
-            disabled={busy}
-            onClick={() => {
-              if (confirm(`Delete ${vm.name}? This permanently destroys the VM.`))
-                act(async () => {
-                  const { job_id } = await api.remove(vm.vmid, vm.name)
-                  openJob(job_id)
-                })
-            }}
-          >
-            <IconTrash />
-          </button>
+        <div className="instance-actions-wrap" onClick={(e) => e.stopPropagation()}>
+          <InstanceActions vm={vm} />
         </div>
       </div>
 

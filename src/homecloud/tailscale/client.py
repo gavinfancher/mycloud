@@ -51,6 +51,29 @@ class TailscaleClient:
                 return device
         return None
 
+    @staticmethod
+    def device_id(device: dict) -> str:
+        """API path id — prefer nodeId over numeric id."""
+        node_id = device.get("nodeId")
+        if node_id:
+            return str(node_id)
+        device_id = device.get("id")
+        if device_id is None:
+            raise ValueError("Tailscale device record has no id or nodeId")
+        return str(device_id)
+
+    def delete_device(self, device_id: str) -> None:
+        """Remove a device from the tailnet (DELETE /api/v2/device/{id})."""
+        self._request("DELETE", f"/device/{device_id}")
+
+    def delete_device_by_hostname(self, hostname: str) -> bool:
+        """Delete tailnet device matching short hostname or FQDN. Returns True if removed."""
+        device = self.get_device_by_hostname(hostname)
+        if device is None:
+            return False
+        self.delete_device(self.device_id(device))
+        return True
+
     def get_device_ip(self, hostname: str) -> str | None:
         device = self.get_device_by_hostname(hostname)
         if not device:

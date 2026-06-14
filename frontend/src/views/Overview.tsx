@@ -2,6 +2,7 @@ import type { ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
 import type { Job } from '../api'
 import { IconActivity, IconImages, IconInstances, IconPlay, IconStop } from '../components/Icons'
+import { InstanceActions } from '../components/InstanceActions'
 import { Pill } from '../components/ui'
 import { relativeTime, titleCase } from '../lib/format'
 import { useStore } from '../lib/store'
@@ -105,17 +106,20 @@ export function Overview() {
           </header>
           <div className="mini-vms">
             {vms.map((vm) => (
-              <button
-                key={vm.vmid}
-                className="mini-vm"
-                onClick={() => navigate('/instances')}
-              >
-                <Pill status={vm.status} />
-                <span className="mini-vm-name">{vm.name}</span>
-                <span className="muted">
-                  {vm.cores ?? '?'} vCPU · {vm.memory_gb ?? '?'} GB
-                </span>
-              </button>
+              <div key={vm.vmid} className="mini-vm-card">
+                <button
+                  className="mini-vm-main"
+                  type="button"
+                  onClick={() => navigate('/instances')}
+                >
+                  <Pill status={vm.status} />
+                  <span className="mini-vm-name">{vm.name}</span>
+                  <span className="muted mini-vm-specs">
+                    {vm.cores ?? '?'} vCPU · {vm.memory_gb ?? '?'} GB
+                  </span>
+                </button>
+                <InstanceActions vm={vm} />
+              </div>
             ))}
           </div>
         </section>

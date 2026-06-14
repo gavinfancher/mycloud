@@ -382,7 +382,7 @@ def delete_vm(vmid: int, name: str | None = None) -> dict:
         log = job_store.logger(job["id"])
         try:
             log("info", f"Deleting {label}…")
-            result = manager.delete(vmid, name=name)
+            result = manager.delete(vmid, name=name, log=log)
             job_store.complete(job["id"], result)
             log("info", f"Deleted {label}")
         except Exception as exc:

@@ -7,6 +7,7 @@ import homecloud.images.deployer as deployer_module
 import homecloud.jobs as jobs_module
 from homecloud.images.deployer import VMDeployer, VMManager
 from homecloud.jobs import JobCancelled, JobStore
+from homecloud.tailscale.client import TailscaleClient
 
 
 class FakeProxmox:
@@ -21,8 +22,32 @@ class FakeProxmox:
         self.calls.append(("resume", vmid))
         return "UPID:resume"
 
+    def stop(self, vmid):
+        self.calls.append(("stop", vmid))
+        return "UPID:stop"
+
+    def delete_vm(self, vmid):
+        self.calls.append(("delete_vm", vmid))
+        return "UPID:delete"
+
     def wait_for_task(self, task, **kwargs):
         self.calls.append(("wait", task))
+
+
+class FakeTailscale:
+    def __init__(self, devices: dict[str, dict] | None = None):
+        self.devices = devices or {}
+        self.deleted: list[str] = []
+
+    def get_device_by_hostname(self, hostname: str) -> dict | None:
+        return self.devices.get(hostname)
+
+    def delete_device_by_hostname(self, hostname: str) -> bool:
+        if hostname not in self.devices:
+            return False
+        device = self.devices.pop(hostname)
+        self.deleted.append(TailscaleClient.device_id(device))
+        return True
 
 
 # ---------------------------------------------------------------------------
@@ -44,6 +69,79 @@ def test_resume_calls_proxmox_and_waits():
     assert result == {"vmid": 501, "status": "running"}
     assert ("resume", 501) in fp.calls
     assert ("wait", "UPID:resume") in fp.calls
+
+
+# ---------------------------------------------------------------------------
+# VMManager delete + Tailscale cleanup
+# ---------------------------------------------------------------------------
+
+
+def test_delete_removes_tailscale_device_when_configured(monkeypatch):
+    fp = FakeProxmox()
+    ft = FakeTailscale(
+        devices={"app": {"nodeId": "n123", "name": "app.tailnet.ts.net"}},
+    )
+    monkeypatch.setattr(deployer_module.settings, "tailscale_api_key", "tskey-test")
+    monkeypatch.setattr(deployer_module, "unregister_vm", lambda name: None)
+    monkeypatch.setattr(deployer_module, "write_zone", lambda: None)
+    monkeypatch.setattr(
+        deployer_module.ProxmoxClient, "invalidate_vm_list_cache", staticmethod(lambda: None)
+    )
+    logs: list[tuple[str, str]] = []
+
+    result = VMManager(proxmox=fp, tailscale=ft).delete(
+        501, name="app", log=lambda level, msg: logs.append((level, msg))
+    )
+
+    assert result == {"vmid": 501, "status": "deleted", "tailscale_removed": True}
+    assert ft.deleted == ["n123"]
+    assert ("stop", 501) in fp.calls
+    assert ("delete_vm", 501) in fp.calls
+    assert any("Removed app from Tailnet" in msg for _, msg in logs)
+
+
+def test_delete_skips_tailscale_when_no_api_key(monkeypatch):
+    fp = FakeProxmox()
+    ft = FakeTailscale(devices={"app": {"nodeId": "n123"}})
+    monkeypatch.setattr(deployer_module.settings, "tailscale_api_key", "")
+    monkeypatch.setattr(deployer_module, "unregister_vm", lambda name: None)
+    monkeypatch.setattr(deployer_module, "write_zone", lambda: None)
+    monkeypatch.setattr(
+        deployer_module.ProxmoxClient, "invalidate_vm_list_cache", staticmethod(lambda: None)
+    )
+
+    result = VMManager(proxmox=fp, tailscale=ft).delete(501, name="app")
+
+    assert result["tailscale_removed"] is False
+    assert ft.deleted == []
+
+
+def test_delete_continues_when_tailscale_device_missing(monkeypatch):
+    fp = FakeProxmox()
+    ft = FakeTailscale()
+    monkeypatch.setattr(deployer_module.settings, "tailscale_api_key", "tskey-test")
+    monkeypatch.setattr(deployer_module, "unregister_vm", lambda name: None)
+    monkeypatch.setattr(deployer_module, "write_zone", lambda: None)
+    monkeypatch.setattr(
+        deployer_module.ProxmoxClient, "invalidate_vm_list_cache", staticmethod(lambda: None)
+    )
+    logs: list[tuple[str, str]] = []
+
+    result = VMManager(proxmox=fp, tailscale=ft).delete(
+        501, name="app", log=lambda level, msg: logs.append((level, msg))
+    )
+
+    assert result["tailscale_removed"] is False
+    assert ("delete_vm", 501) in fp.calls
+    assert any("tailnet cleanup skipped" in msg for _, msg in logs)
+
+
+def test_tailscale_device_id_prefers_node_id():
+    assert TailscaleClient.device_id({"nodeId": "n1", "id": 42}) == "n1"
+
+
+def test_tailscale_device_id_falls_back_to_numeric_id():
+    assert TailscaleClient.device_id({"id": 42}) == "42"
 
 
 # ---------------------------------------------------------------------------
