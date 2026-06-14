@@ -5,8 +5,8 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
-COMPOSE_FILE="$ROOT/infra/docker/docker-compose.yml"
-compose() { docker compose -f "$COMPOSE_FILE" "$@"; }
+STACK_COMPOSE="$ROOT/infra/docker/docker-compose.yml"
+compose() { docker compose -f "$STACK_COMPOSE" "$@"; }
 
 if [[ ! -f .env ]]; then
   echo "Missing .env — copy .env.example and fill secrets first." >&2
@@ -19,9 +19,18 @@ if ! git rev-parse --git-dir >/dev/null 2>&1; then
 fi
 
 BRANCH="${DEPLOY_BRANCH:-main}"
-echo "→ Syncing origin/${BRANCH}…"
-git fetch origin "$BRANCH"
-git reset --hard "origin/${BRANCH}"
+if [[ -z "${HOMECLOUD_DEPLOY_SYNCED:-}" ]]; then
+  echo "→ Syncing origin/${BRANCH}…"
+  git fetch origin "$BRANCH"
+  git reset --hard "origin/${BRANCH}"
+  export HOMECLOUD_DEPLOY_SYNCED=1
+  exec "$0" "$@"
+fi
+
+if [[ ! -f "$STACK_COMPOSE" ]]; then
+  echo "Missing $STACK_COMPOSE — repo layout may be out of date." >&2
+  exit 1
+fi
 
 echo "→ Building controller image…"
 compose build controller

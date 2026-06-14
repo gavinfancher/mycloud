@@ -62,6 +62,9 @@ must be able to run `docker compose` (same as manual deploy).
 Optional: add a **production** environment in GitHub for approval gates before deploy — no
 secrets required for the self-hosted path.
 
+`control-node-deploy.sh` runs `git reset --hard` then `exec`s itself so the shell reloads
+the synced script after layout changes (e.g. moving `docker-compose.yml` under `infra/docker/`).
+
 <details>
 <summary>Alternative: hosted runners + Tailscale (not used by default)</summary>
 
