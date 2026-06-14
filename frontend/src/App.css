@@ -556,11 +556,15 @@ textarea {
   font-weight: 600;
   flex: 1;
   min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .mini-vm-specs {
   font-size: 12px;
   white-space: nowrap;
   flex-shrink: 0;
+  padding-left: 4px;
 }
 .mini-vm-card .instance-actions {
   flex-shrink: 0;
