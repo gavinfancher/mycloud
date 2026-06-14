@@ -63,25 +63,23 @@ make deploy-stack   # or: docker compose up -d --build
 
 ## Troubleshooting
 
-### Cloudflare Git builds never start on push
+### Cloudflare Git stopped building on push
 
-The **Workers Git** webhook often stalls. Use **GitHub Actions** instead (`.github/workflows/deploy-frontend.yml`).
+Your normal path is **Workers & Pages → homecloud → Settings → Builds** (Git connected to `main`, root `frontend`). That does **not** use GitHub secrets — Cloudflare pulls from GitHub and runs `npm run build` + `npx wrangler deploy` on their side.
 
-Required GitHub secrets (repo or **production** environment):
+If pushes no longer show up under **Deployments**:
 
-| Secret | Value |
-|--------|--------|
-| `CLOUDFLARE_API_TOKEN` | API token with **Workers Scripts → Edit** (not DNS-only) |
-| `CLOUDFLARE_ACCOUNT_ID` | `2750df8a500fb8335c195bad8cccc14a` |
-| `VITE_CLERK_PUBLISHABLE_KEY` | Your Clerk `pk_test_…` or `pk_live_…` |
+1. **Retry manually** — Deployments → ⋯ on last build → **Retry build**, or **Create deployment** → branch `main` → latest commit.
+2. **Build watch paths** — Settings → Build → **Build watch paths**. Include should be `*` (or at least `frontend/**`). If includes are too narrow, commits that only touch other folders won't trigger a build.
+3. **Root directory** — must be `frontend` (not repo root).
+4. **Reconnect Git** — Settings → Build → disconnect and reconnect the GitHub repo (fixes stale webhooks). See [Cloudflare Git integration troubleshooting](https://developers.cloudflare.com/workers/ci-cd/builds/troubleshoot/).
+5. **Stale build token** — if Builds settings reference an API token that was rolled, create a new token in Build settings and retry.
 
-Create the token: Cloudflare Dashboard → **My Profile → API Tokens → Create Token** → template **Edit Cloudflare Workers** (or custom: Account / Workers Scripts / Edit).
+Check GitHub → repo **Settings → Integrations → Applications** → Cloudflare Workers — recent webhook deliveries should show `push` events for your commits.
 
-After secrets are set, push any `frontend/` change or run **Actions → Deploy frontend → Run workflow**.
+GitHub Actions **Deploy frontend** (if present) is an optional manual backup (`workflow_dispatch` only), not your primary deploy path.
 
-Optional: disable **automatic Git builds** on the Worker (Settings → Build) to avoid duplicate deploys.
-
-### Pushes to `main` don't trigger a new deployment
+### Optional: GitHub Actions deploy (not required)
 
 Cloudflare **Workers Git** builds are separate from GitHub Actions CI. Check **Workers & Pages → homecloud → Deployments**:
 
