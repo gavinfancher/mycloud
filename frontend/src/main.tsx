@@ -1,6 +1,7 @@
 import { ClerkProvider } from '@clerk/react'
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
+import { BrowserRouter } from 'react-router-dom'
 import './index.css'
 import App from './App.tsx'
 import { BYPASS_AUTH } from './lib/auth'
@@ -13,12 +14,14 @@ if (!BYPASS_AUTH && !PUBLISHABLE_KEY) {
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    {BYPASS_AUTH ? (
-      <App />
-    ) : (
-      <ClerkProvider publishableKey={PUBLISHABLE_KEY} afterSignOutUrl="/">
+    <BrowserRouter>
+      {BYPASS_AUTH ? (
         <App />
-      </ClerkProvider>
-    )}
+      ) : (
+        <ClerkProvider publishableKey={PUBLISHABLE_KEY} afterSignOutUrl="/">
+          <App />
+        </ClerkProvider>
+      )}
+    </BrowserRouter>
   </StrictMode>,
 )

@@ -1,11 +1,13 @@
 import type { ReactNode } from 'react'
+import { useNavigate } from 'react-router-dom'
 import type { Job } from '../api'
 import { IconActivity, IconImages, IconInstances, IconPlay, IconStop } from '../components/Icons'
 import { Pill } from '../components/ui'
 import { relativeTime, titleCase } from '../lib/format'
 import { useStore } from '../lib/store'
 
-export function Overview({ onNavigate }: { onNavigate: (view: string) => void }) {
+export function Overview() {
+  const navigate = useNavigate()
   const { dashboard, vms } = useStore()
   const stats = dashboard?.stats
   const jobs = dashboard?.recent_jobs ?? []
@@ -25,7 +27,7 @@ export function Overview({ onNavigate }: { onNavigate: (view: string) => void })
             <strong>Base image not built.</strong> Build the <code>homecloud-base</code> template
             before creating instances.
           </div>
-          <button className="btn btn-sm" onClick={() => onNavigate('images')}>
+          <button className="btn btn-sm" onClick={() => navigate('/images')}>
             Go to Images
           </button>
         </div>
@@ -74,7 +76,7 @@ export function Overview({ onNavigate }: { onNavigate: (view: string) => void })
         <section className="panel">
           <header className="panel-head">
             <h2>Recent activity</h2>
-            <button className="btn btn-ghost btn-sm" onClick={() => onNavigate('activity')}>
+            <button className="btn btn-ghost btn-sm" onClick={() => navigate('/activity')}>
               View all
             </button>
           </header>
@@ -97,7 +99,7 @@ export function Overview({ onNavigate }: { onNavigate: (view: string) => void })
         <section className="panel">
           <header className="panel-head">
             <h2>Instances</h2>
-            <button className="btn btn-ghost btn-sm" onClick={() => onNavigate('instances')}>
+            <button className="btn btn-ghost btn-sm" onClick={() => navigate('/instances')}>
               Manage
             </button>
           </header>
@@ -106,7 +108,7 @@ export function Overview({ onNavigate }: { onNavigate: (view: string) => void })
               <button
                 key={vm.vmid}
                 className="mini-vm"
-                onClick={() => onNavigate('instances')}
+                onClick={() => navigate('/instances')}
               >
                 <Pill status={vm.status} />
                 <span className="mini-vm-name">{vm.name}</span>

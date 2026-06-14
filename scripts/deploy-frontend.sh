@@ -19,8 +19,8 @@ fi
 echo "→ Building production bundle…"
 npm run build
 
-PROJECT="${PAGES_PROJECT_NAME:-homecloud}"
-echo "→ Deploying dist/ to Cloudflare Pages project '${PROJECT}'…"
-npx wrangler pages deploy dist --project-name="$PROJECT" --commit-dirty=true
+PROJECT="${WORKER_NAME:-homecloud}"
+echo "→ Deploying dist/ to Cloudflare Worker '${PROJECT}' (wrangler deploy)…"
+npx wrangler deploy
 
 echo "✓ Frontend deployed. Console: https://app.myhomecloud.dev (if DNS is wired)"

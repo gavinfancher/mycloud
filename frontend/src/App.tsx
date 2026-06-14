@@ -1,5 +1,6 @@
 import { Show, SignIn, UserButton, useAuth } from '@clerk/react'
-import { useCallback, useState, type ReactNode } from 'react'
+import { useCallback, type ReactNode } from 'react'
+import { NavLink, Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import './App.css'
 import {
   IconActivity,
@@ -22,16 +23,15 @@ import { Settings } from './views/Settings'
 
 type ViewId = 'overview' | 'instances' | 'images' | 'activity' | 'settings'
 
-const NAV: { id: ViewId; label: string; icon: ReactNode }[] = [
-  { id: 'overview', label: 'Overview', icon: <IconOverview /> },
-  { id: 'instances', label: 'Instances', icon: <IconInstances /> },
-  { id: 'images', label: 'Images', icon: <IconImages /> },
-  { id: 'activity', label: 'Activity', icon: <IconActivity /> },
-  { id: 'settings', label: 'Settings', icon: <IconSettings /> },
+const NAV: { id: ViewId; path: string; label: string; icon: ReactNode }[] = [
+  { id: 'overview', path: '/overview', label: 'Overview', icon: <IconOverview /> },
+  { id: 'instances', path: '/instances', label: 'Instances', icon: <IconInstances /> },
+  { id: 'images', path: '/images', label: 'Images', icon: <IconImages /> },
+  { id: 'activity', path: '/activity', label: 'Activity', icon: <IconActivity /> },
+  { id: 'settings', path: '/settings', label: 'Settings', icon: <IconSettings /> },
 ]
 
 export default function App() {
-  // Local dev: skip Clerk entirely and run the console with a no-op token.
   if (BYPASS_AUTH) {
     return (
       <ToastProvider>
@@ -63,8 +63,6 @@ export default function App() {
   )
 }
 
-// Bridges Clerk's session token into the (Clerk-agnostic) store. Only rendered
-// inside ClerkProvider, so calling useAuth here is safe.
 function ClerkStoreProvider({ children }: { children: ReactNode }) {
   const { getToken, isLoaded, isSignedIn } = useAuth()
 
@@ -86,30 +84,31 @@ function ClerkStoreProvider({ children }: { children: ReactNode }) {
 
 function Console({ devBypass = false }: { devBypass?: boolean }) {
   const { dashboard, ready, connError, activeJob, closeJob } = useStore()
-  const [view, setView] = useState<ViewId>('overview')
-
-  const current = NAV.find((n) => n.id === view)
+  const location = useLocation()
+  const current =
+    NAV.find((n) => location.pathname === n.path || location.pathname.startsWith(`${n.path}/`)) ??
+    NAV[0]
 
   return (
     <div className="shell">
       <aside className="sidebar">
-        <div className="sidebar-brand">
+        <NavLink to="/overview" className="sidebar-brand" title="Overview">
           <IconCloud width={22} height={22} />
           <span>homecloud</span>
-        </div>
+        </NavLink>
         <nav className="sidebar-nav">
           {NAV.map((n) => (
-            <button
+            <NavLink
               key={n.id}
-              className={`nav-item ${view === n.id ? 'active' : ''}`}
-              onClick={() => setView(n.id)}
+              to={n.path}
+              className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
             >
               {n.icon}
               <span>{n.label}</span>
               {n.id === 'instances' && dashboard && (
                 <span className="nav-count">{dashboard.stats.total_vms}</span>
               )}
-            </button>
+            </NavLink>
           ))}
         </nav>
         <div className="sidebar-foot">
@@ -123,7 +122,7 @@ function Console({ devBypass = false }: { devBypass?: boolean }) {
       <div className="main">
         <header className="topbar">
           <div className="topbar-title">
-            <h1>{current?.label}</h1>
+            <h1>{current.label}</h1>
           </div>
           <div className="spacer" />
           {!ready && <span className="muted small">connecting…</span>}
@@ -147,11 +146,15 @@ function Console({ devBypass = false }: { devBypass?: boolean }) {
         )}
 
         <div className="content">
-          {view === 'overview' && <Overview onNavigate={(v) => setView(v as ViewId)} />}
-          {view === 'instances' && <Instances />}
-          {view === 'images' && <Images />}
-          {view === 'activity' && <Activity />}
-          {view === 'settings' && <Settings />}
+          <Routes>
+            <Route path="/" element={<Navigate to="/overview" replace />} />
+            <Route path="/overview" element={<Overview />} />
+            <Route path="/instances" element={<Instances />} />
+            <Route path="/images" element={<Images />} />
+            <Route path="/activity" element={<Activity />} />
+            <Route path="/settings" element={<Settings />} />
+            <Route path="*" element={<Navigate to="/overview" replace />} />
+          </Routes>
         </div>
       </div>
 

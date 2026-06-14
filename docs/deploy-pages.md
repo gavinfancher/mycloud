@@ -63,6 +63,28 @@ make deploy-stack   # or: docker compose up -d --build
 
 ## Troubleshooting
 
+### Pushes to `main` don't trigger a new deployment
+
+Cloudflare **Workers Git** builds are separate from GitHub Actions CI. Check **Workers & Pages → homecloud → Deployments**:
+
+- If the latest build is older than your last `git push`, the GitHub ↔ Cloudflare webhook may have stalled (common after repo settings changes).
+- **Quick fix:** Deployments → **Retry deployment** on the latest commit, or **Create deployment** → branch `main`.
+- **Reliable fix:** use the repo workflow `.github/workflows/deploy-frontend.yml` (runs on `frontend/**` pushes). Set GitHub **production** environment secrets:
+  - `CLOUDFLARE_API_TOKEN` — Workers deploy permission
+  - `CLOUDFLARE_ACCOUNT_ID` — from Cloudflare dashboard URL or `wrangler whoami`
+  - `VITE_CLERK_PUBLISHABLE_KEY` — same value as Cloudflare build env
+
+You can disable automatic Git builds in Cloudflare once GitHub Actions deploy is working (avoids duplicate deploys).
+
+**Manual deploy from your laptop** (same as Workers Git uses):
+
+```bash
+cd frontend
+export VITE_CLERK_PUBLISHABLE_KEY=pk_test_…   # or source from clerk env pull
+npm run build
+npx wrangler deploy
+```
+
 ### Build succeeds, deploy fails with "Missing entry-point"
 
 Your project uses **Workers Git deploy** (`npx wrangler deploy`). Ensure

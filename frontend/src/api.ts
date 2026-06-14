@@ -164,6 +164,7 @@ export function createApi(getToken: TokenGetter) {
       if (e instanceof DOMException && e.name === 'AbortError') {
         throw new Error(
           `Timed out calling ${API_BASE || 'same-origin'}${path} — the controller may be busy (Proxmox deploy/delete)`,
+          { cause: e },
         )
       }
       if (e instanceof TypeError) {
