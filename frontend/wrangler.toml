@@ -2,6 +2,7 @@
 # Cloudflare runs: npm run build → npx wrangler deploy
 # Dashboard: root directory MUST be `frontend` (not empty) | build npm run build | deploy npx wrangler deploy
 name = "homecloud"
+account_id = "2750df8a500fb8335c195bad8cccc14a"
 compatibility_date = "2026-06-13"
 
 [assets]

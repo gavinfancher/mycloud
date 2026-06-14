@@ -63,6 +63,24 @@ make deploy-stack   # or: docker compose up -d --build
 
 ## Troubleshooting
 
+### Cloudflare Git builds never start on push
+
+The **Workers Git** webhook often stalls. Use **GitHub Actions** instead (`.github/workflows/deploy-frontend.yml`).
+
+Required GitHub secrets (repo or **production** environment):
+
+| Secret | Value |
+|--------|--------|
+| `CLOUDFLARE_API_TOKEN` | API token with **Workers Scripts → Edit** (not DNS-only) |
+| `CLOUDFLARE_ACCOUNT_ID` | `2750df8a500fb8335c195bad8cccc14a` |
+| `VITE_CLERK_PUBLISHABLE_KEY` | Your Clerk `pk_test_…` or `pk_live_…` |
+
+Create the token: Cloudflare Dashboard → **My Profile → API Tokens → Create Token** → template **Edit Cloudflare Workers** (or custom: Account / Workers Scripts / Edit).
+
+After secrets are set, push any `frontend/` change or run **Actions → Deploy frontend → Run workflow**.
+
+Optional: disable **automatic Git builds** on the Worker (Settings → Build) to avoid duplicate deploys.
+
 ### Pushes to `main` don't trigger a new deployment
 
 Cloudflare **Workers Git** builds are separate from GitHub Actions CI. Check **Workers & Pages → homecloud → Deployments**:

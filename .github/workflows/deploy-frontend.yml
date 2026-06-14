@@ -6,6 +6,7 @@ on:
     paths:
       - "frontend/**"
       - ".github/workflows/deploy-frontend.yml"
+  workflow_dispatch:
 
 concurrency:
   group: deploy-frontend
@@ -20,6 +21,17 @@ jobs:
         working-directory: frontend
     steps:
       - uses: actions/checkout@v4
+
+      - name: Require deploy secrets
+        env:
+          CF_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CF_ACCOUNT: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLERK_KEY: ${{ secrets.VITE_CLERK_PUBLISHABLE_KEY }}
+        run: |
+          if [[ -z "$CF_TOKEN" || -z "$CF_ACCOUNT" || -z "$CLERK_KEY" ]]; then
+            echo "::error::Set CLOUDFLARE_API_TOKEN, CLOUDFLARE_ACCOUNT_ID, and VITE_CLERK_PUBLISHABLE_KEY as GitHub secrets (repo or production environment)."
+            exit 1
+          fi
 
       - uses: actions/setup-node@v4
         with:
@@ -45,4 +57,5 @@ jobs:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           workingDirectory: frontend
+          wranglerVersion: "4"
           command: deploy
