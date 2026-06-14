@@ -25,7 +25,24 @@ The deploy command **cannot be removed** on Workers Git projects — that's expe
 
 Enable **automatic deployments** on push to `main`.
 
-### Environment variables (Pages → Settings → Environment variables)
+### Build watch paths (frontend-only builds)
+
+By default, Cloudflare builds on **every** push to `main`, even backend-only changes.
+Limit builds to the SPA:
+
+1. **Workers & Pages** → **homecloud** → **Settings** → **Build**
+2. **Build watch paths**
+3. Set:
+   - **Include paths:** `frontend/*`
+   - **Exclude paths:** *(leave empty)*
+
+Paths are relative to the **repository root** (not the `frontend` root directory).
+A push that only changes `src/`, `infra/`, `docs/`, etc. will **skip** the Cloudflare build.
+Pushes that touch anything under `frontend/` still build and deploy.
+
+Manual **Retry build** in the dashboard always runs a build (watch paths are bypassed for empty pushes and retries).
+
+### Environment variables (Workers → Settings → Environment variables)
 
 Set these for **Production** (and Preview if you want Clerk on preview deploys):
 
@@ -70,7 +87,7 @@ Your normal path is **Workers & Pages → homecloud → Settings → Builds** (G
 If pushes no longer show up under **Deployments**:
 
 1. **Retry manually** — Deployments → ⋯ on last build → **Retry build**, or **Create deployment** → branch `main` → latest commit.
-2. **Build watch paths** — Settings → Build → **Build watch paths**. Include should be `*` (or at least `frontend/**`). If includes are too narrow, commits that only touch other folders won't trigger a build.
+2. **Build watch paths** — Settings → Build → include `frontend/*`, exclude empty. Backend-only commits should **not** appear as new deployments.
 3. **Root directory** — must be `frontend` (not repo root).
 4. **Reconnect Git** — Settings → Build → disconnect and reconnect the GitHub repo (fixes stale webhooks). See [Cloudflare Git integration troubleshooting](https://developers.cloudflare.com/workers/ci-cd/builds/troubleshoot/).
 5. **Stale build token** — if Builds settings reference an API token that was rolled, create a new token in Build settings and retry.
