@@ -88,7 +88,7 @@ function Console({ devBypass = false }: { devBypass?: boolean }) {
       <aside className="sidebar">
         <NavLink to="/overview" className="sidebar-brand" title="Overview">
           <IconCloud width={22} height={22} />
-          <span>homecloud</span>
+          <span>mycloud</span>
         </NavLink>
         <nav className="sidebar-nav">
           {NAV.map((n) => (
